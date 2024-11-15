@@ -4,6 +4,11 @@ import "core:fmt"
 
 OpCode :: enum u8 {
     CONSTANT,
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE,
+    NEGATE,
     RETURN,
 }
 
