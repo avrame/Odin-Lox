@@ -8,7 +8,7 @@ STACK_MAX :: 256
 
 VM :: struct {
 	chunk: ^Chunk,
-	ip:    int,
+	ip:    ^u8,
 	stack: [STACK_MAX]Value,
 	stack_top: ^Value,
 }
@@ -49,9 +49,9 @@ negate :: proc() {
 }
 
 readByte :: proc() -> u8 {
-	b := vm.chunk.code[vm.ip]
-	vm.ip += 1
-	return b
+	byte_code := vm.ip^
+	vm.ip = mem.ptr_offset(vm.ip, 1)
+	return byte_code
 }
 
 readConstant :: proc() -> Value {
@@ -102,6 +102,6 @@ run :: proc() -> InterpretResult {
 
 interpret :: proc(chunk: ^Chunk) -> InterpretResult {
 	vm.chunk = chunk
-	vm.ip = 0
+	vm.ip = &vm.chunk.code[0]
 	return run()
 }
