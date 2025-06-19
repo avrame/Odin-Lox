@@ -7,9 +7,9 @@ DEBUG_STACK_TRACE :: true
 STACK_MAX :: 256
 
 VM :: struct {
-	chunk: ^Chunk,
-	ip:    ^u8,
-	stack: [STACK_MAX]Value,
+	chunk:     ^Chunk,
+	ip:        ^u8,
+	stack:     [STACK_MAX]Value,
 	stack_top: ^Value,
 }
 
@@ -100,8 +100,7 @@ run :: proc() -> InterpretResult {
 	}
 }
 
-interpret :: proc(chunk: ^Chunk) -> InterpretResult {
-	vm.chunk = chunk
-	vm.ip = &vm.chunk.code[0]
-	return run()
+interpret :: proc(source: ^string) -> InterpretResult {
+	compile(source)
+	return .INTERPRET_OK
 }
