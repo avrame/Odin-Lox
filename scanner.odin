@@ -13,9 +13,9 @@ Scanner :: struct {
 }
 
 Token :: struct {
-	type:   TokenType,
-	source: string,
-	line:   int,
+	type:  TokenType,
+	value: string,
+	line:  int,
 }
 
 TokenType :: enum {
@@ -102,13 +102,13 @@ peek :: proc() -> rune {
 }
 
 peekNext :: proc() -> (rune, io.Error) {
-	if isAtEnd() { return ' ', io.Error.EOF }
+	if isAtEnd() {return ' ', io.Error.EOF}
 	return utf8.rune_at(scanner.buffer^, scanner.current + 1), nil
 }
 
 @(private = "file")
 match :: proc(expected: rune) -> bool {
-	if isAtEnd() { return false }
+	if isAtEnd() {return false}
 	if utf8.rune_at(scanner.buffer^, scanner.current) != expected {return false}
 	scanner.current += 1
 	return true
@@ -117,13 +117,13 @@ match :: proc(expected: rune) -> bool {
 makeToken :: proc(type: TokenType) -> Token {
 	return Token {
 		type = type,
-		source = scanner.buffer[scanner.start:scanner.current],
+		value = scanner.buffer[scanner.start:scanner.current],
 		line = scanner.line,
 	}
 }
 
 errorToken :: proc(message: string) -> Token {
-	return Token{type = .ERROR, line = scanner.line, source = message}
+	return Token{type = .ERROR, line = scanner.line, value = message}
 }
 
 skipWhitespace :: proc() {
@@ -142,18 +142,20 @@ skipWhitespace :: proc() {
 			if err != nil {
 				if nextChar == '/' {
 					// A comment goes until the end of the line.
-					for peek() != '\n' && !isAtEnd() { advance() }
+					for peek() != '\n' && !isAtEnd() {advance()}
 				}
 			}
 			return
-		case: // any other character
+		case:
+			// any other character
 			return
 		}
 	}
 }
 
 checkKeyword :: proc(start: int, length: int, rest: string, type: TokenType) -> TokenType {
-	if scanner.current - scanner.start == start + length && scanner.buffer[scanner.start+start:scanner.start+start+length] == rest {
+	if scanner.current - scanner.start == start + length &&
+	   scanner.buffer[scanner.start + start:scanner.start + start + length] == rest {
 		return type
 	}
 	return .IDENTIFIER
@@ -161,50 +163,68 @@ checkKeyword :: proc(start: int, length: int, rest: string, type: TokenType) -> 
 
 identifierType :: proc() -> TokenType {
 	switch scanner.buffer[scanner.start] {
-		case 'a': return checkKeyword(1, 2, "nd", .AND)
-		case 'c': return checkKeyword(1, 4, "lass", .CLASS)
-		case 'e': return checkKeyword(1, 3, "lse", .ELSE)
-		case 'f': {
+	case 'a':
+		return checkKeyword(1, 2, "nd", .AND)
+	case 'c':
+		return checkKeyword(1, 4, "lass", .CLASS)
+	case 'e':
+		return checkKeyword(1, 3, "lse", .ELSE)
+	case 'f':
+		{
 			if scanner.current - scanner.start > 1 {
-				switch scanner.buffer[scanner.start+1] {
-				case 'a': return checkKeyword(2, 3, "lse", .FALSE)
-				case 'o': return checkKeyword(2, 1, "r", .FOR)
-				case 'u': return checkKeyword(2, 4, "n", .FUN)
+				switch scanner.buffer[scanner.start + 1] {
+				case 'a':
+					return checkKeyword(2, 3, "lse", .FALSE)
+				case 'o':
+					return checkKeyword(2, 1, "r", .FOR)
+				case 'u':
+					return checkKeyword(2, 4, "n", .FUN)
 				}
 			}
 		}
-		case 'i': return checkKeyword(1, 1, "f", .IF)
-		case 'n': return checkKeyword(1, 2, "il", .NIL)
-		case 'o': return checkKeyword(1, 1, "r", .OR)
-		case 'p': return checkKeyword(1, 4, "rint", .PRINT)
-		case 'r': return checkKeyword(1, 5, "eturn", .RETURN)
-		case 's': return checkKeyword(1, 4, "uper", .SUPER)
-		case 't': {
+	case 'i':
+		return checkKeyword(1, 1, "f", .IF)
+	case 'n':
+		return checkKeyword(1, 2, "il", .NIL)
+	case 'o':
+		return checkKeyword(1, 1, "r", .OR)
+	case 'p':
+		return checkKeyword(1, 4, "rint", .PRINT)
+	case 'r':
+		return checkKeyword(1, 5, "eturn", .RETURN)
+	case 's':
+		return checkKeyword(1, 4, "uper", .SUPER)
+	case 't':
+		{
 			if scanner.current - scanner.start > 1 {
-				switch scanner.buffer[scanner.start+1] {
-				case 'h': return checkKeyword(2, 2, "is", .THIS)
-				case 'r': return checkKeyword(2, 2, "ue", .TRUE)
+				switch scanner.buffer[scanner.start + 1] {
+				case 'h':
+					return checkKeyword(2, 2, "is", .THIS)
+				case 'r':
+					return checkKeyword(2, 2, "ue", .TRUE)
 				}
 			}
 		}
-		case 'v': return checkKeyword(1, 2, "ar", .VAR)
-		case 'w': return checkKeyword(1, 4, "hile", .WHILE)
+	case 'v':
+		return checkKeyword(1, 2, "ar", .VAR)
+	case 'w':
+		return checkKeyword(1, 4, "hile", .WHILE)
 	}
 	return .IDENTIFIER
 }
 
 scanIdentifier :: proc() -> Token {
-	for isAlpha(peek()) || isDigit(peek()) { advance() }
+	for isAlpha(peek()) || isDigit(peek()) {advance()}
 	return makeToken(identifierType())
 }
 
 scanNumber :: proc() -> Token {
-	for isDigit(peek()) || peek() == '_' { advance() }
+	for isDigit(peek()) || peek() == '_' {advance()}
 	nextChar, _ := peekNext()
 	if peek() == '.' && isDigit(nextChar) {
 		// Consume the "."
 		advance()
-		for isDigit(peek()) { advance() }
+		for isDigit(peek()) {advance()}
 	}
 	return makeToken(.NUMBER)
 }
@@ -232,8 +252,8 @@ scanToken :: proc() -> Token {
 
 	c: rune = advance()
 
-	if isAlpha(c) { return scanIdentifier() }
-	if isDigit(c) { return scanNumber() }
+	if isAlpha(c) {return scanIdentifier()}
+	if isDigit(c) {return scanNumber()}
 
 	switch c {
 	case '(':
@@ -266,7 +286,8 @@ scanToken :: proc() -> Token {
 		return makeToken(match('=') ? .LESS_EQUAL : .LESS)
 	case '>':
 		return makeToken(match('=') ? .GREATER_EQUAL : .GREATER)
-	case '"': return scanString()
+	case '"':
+		return scanString()
 	}
 
 	unexpected_char := "Unexpected character."

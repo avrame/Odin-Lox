@@ -101,6 +101,19 @@ run :: proc() -> InterpretResult {
 }
 
 interpret :: proc(source: ^string) -> InterpretResult {
-	compile(source)
-	return .INTERPRET_OK
+	chunk: Chunk
+	initChunk(&chunk)
+
+	if !compile(source, &chunk) {
+		freeChunk(&chunk)
+		return .INTERPRET_COMPILE_ERROR
+	}
+
+	vm.chunk = &chunk
+	vm.ip = &vm.chunk.code[0]
+
+	result: InterpretResult = run()
+
+	freeChunk(&chunk)
+	return result
 }
