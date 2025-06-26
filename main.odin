@@ -53,6 +53,6 @@ runFile :: proc(path: string) {
 	source: string = string(source_bytes[:])
 	result: InterpretResult = interpret(&source)
 
-	if result == .INTERPRET_COMPILE_ERROR {os.exit(65)}
-	if result == .INTERPRET_RUNTIME_ERROR {os.exit(70)}
+	if result == .COMPILE_ERROR {os.exit(65)}
+	if result == .RUNTIME_ERROR {os.exit(70)}
 }

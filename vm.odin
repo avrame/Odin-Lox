@@ -1,6 +1,7 @@
 package odinlox
 
 import "core:fmt"
+import "core:log"
 import "core:mem"
 
 DEBUG_STACK_TRACE :: true
@@ -14,15 +15,40 @@ VM :: struct {
 }
 
 InterpretResult :: enum {
-	INTERPRET_OK,
-	INTERPRET_COMPILE_ERROR,
-	INTERPRET_RUNTIME_ERROR,
+	OK,
+	COMPILE_ERROR,
+	RUNTIME_ERROR,
 }
 
 vm: VM
 
 resetStack :: proc() {
 	vm.stack_top = &vm.stack[0]
+}
+
+getLineAtInstruction :: proc(instruction_idx: int) -> (int, bool) {
+	instruction_count := 0
+	for line in vm.chunk.lines {
+		instruction_count += line.count
+		if instruction_count >= instruction_idx {
+			return line.line_num, true
+		}
+	}
+	return 0, false
+}
+
+runtimeError :: proc(format: string, args: ..any) {
+	fmt.printfln(format, ..args)
+
+	instruction_idx := mem.ptr_sub(vm.ip, &vm.chunk.code[0]) - 1
+	line_num, ok := getLineAtInstruction(instruction_idx)
+	if !ok {
+		fmt.printfln("I couldn't find the line number for the runtime error!")
+		return
+	}
+	fmt.printfln("[line %v] in script", line_num)
+
+	resetStack()
 }
 
 initVM :: proc() {
@@ -43,9 +69,12 @@ pop :: proc() -> Value {
 	return vm.stack_top^
 }
 
-negate :: proc() {
-	temp: ^Value = mem.ptr_offset(vm.stack_top, -1)
-	temp^ = -temp^
+peek :: proc(distance: i32) -> Value {
+	return mem.ptr_offset(vm.stack_top, -1 - distance)^
+}
+
+isFalsey :: proc(value: Value) -> bool {
+	return isNil(value) || (isBool(value) && !asBool(value))
 }
 
 readByte :: proc() -> u8 {
@@ -56,6 +85,14 @@ readByte :: proc() -> u8 {
 
 readConstant :: proc() -> Value {
 	return vm.chunk.constants[readByte()]
+}
+
+checkNumbers :: proc() -> InterpretResult {
+	if !isNumber(peek(0)) || !isNumber(peek(1)) {
+		runtimeError("Operands must be numbers.")
+		return .RUNTIME_ERROR
+	}
+	return nil
 }
 
 run :: proc() -> InterpretResult {
@@ -74,28 +111,58 @@ run :: proc() -> InterpretResult {
 		case .CONSTANT:
 			constant: Value = readConstant()
 			push(constant)
+		case .NIL:
+			push(nilVal())
+		case .TRUE:
+			push(boolVal(true))
+		case .FALSE:
+			push(boolVal(false))
+		case .EQUAL:
+			b: Value = pop()
+			a: Value = pop()
+			push(boolVal(valuesEqual(a, b)))
+		case .GREATER:
+			checkNumbers() or_return
+			b: f64 = asNumber(pop())
+			a: f64 = asNumber(pop())
+			push(boolVal(a > b))
+		case .LESS:
+			checkNumbers() or_return
+			b: f64 = asNumber(pop())
+			a: f64 = asNumber(pop())
+			push(boolVal(a < b))
 		case .ADD:
-			b: Value = pop()
-			a: Value = pop()
-			push(a + b)
+			checkNumbers() or_return
+			b: f64 = asNumber(pop())
+			a: f64 = asNumber(pop())
+			push(numberVal(a + b))
 		case .SUBTRACT:
-			b: Value = pop()
-			a: Value = pop()
-			push(a - b)
+			checkNumbers() or_return
+			b: f64 = asNumber(pop())
+			a: f64 = asNumber(pop())
+			push(numberVal(a - b))
 		case .MULTIPLY:
-			b: Value = pop()
-			a: Value = pop()
-			push(a * b)
+			checkNumbers() or_return
+			b: f64 = asNumber(pop())
+			a: f64 = asNumber(pop())
+			push(numberVal(a * b))
 		case .DIVIDE:
-			b: Value = pop()
-			a: Value = pop()
-			push(a / b)
+			checkNumbers() or_return
+			b: f64 = asNumber(pop())
+			a: f64 = asNumber(pop())
+			push(numberVal(a / b))
+		case .NOT:
+			push(boolVal(isFalsey(pop())))
 		case .NEGATE:
-			negate()
+			if !isNumber(peek(0)) {
+				runtimeError("Operand must be a number.")
+				return .RUNTIME_ERROR
+			}
+			push(numberVal(-asNumber(pop())))
 		case .RETURN:
 			printValue(pop())
 			fmt.println("")
-			return .INTERPRET_OK
+			return .OK
 		}
 	}
 }
@@ -106,7 +173,7 @@ interpret :: proc(source: ^string) -> InterpretResult {
 
 	if !compile(source, &chunk) {
 		freeChunk(&chunk)
-		return .INTERPRET_COMPILE_ERROR
+		return .COMPILE_ERROR
 	}
 
 	vm.chunk = &chunk

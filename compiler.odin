@@ -169,16 +169,39 @@ binary :: proc() {
 	parsePrecedence(cast(Precedence)(int(rule.precedence) + 1))
 
 	#partial switch operatorType {
+	case .BANG_EQUAL:
+		emitBytes(OpCode.EQUAL, OpCode.NOT)
+	case .EQUAL_EQUAL:
+		emitByte(OpCode.EQUAL)
+	case .GREATER:
+		emitByte(OpCode.GREATER)
+	case .GREATER_EQUAL:
+		emitBytes(OpCode.LESS, OpCode.NOT)
+	case .LESS:
+		emitByte(OpCode.LESS)
+	case .LESS_EQUAL:
+		emitBytes(OpCode.GREATER, OpCode.NOT)
 	case .PLUS:
-		{emitByte(OpCode.ADD)}
+		emitByte(OpCode.ADD)
 	case .MINUS:
-		{emitByte(OpCode.SUBTRACT)}
+		emitByte(OpCode.SUBTRACT)
 	case .STAR:
-		{emitByte(OpCode.MULTIPLY)}
+		emitByte(OpCode.MULTIPLY)
 	case .SLASH:
-		{emitByte(OpCode.DIVIDE)}
+		emitByte(OpCode.DIVIDE)
 	case:
 		return // Unreachable
+	}
+}
+
+literal :: proc() {
+	#partial switch parser.previous.type {
+	case TokenType.FALSE:
+		emitByte(OpCode.FALSE)
+	case TokenType.NIL:
+		emitByte(OpCode.NIL)
+	case TokenType.TRUE:
+		emitByte(OpCode.TRUE)
 	}
 }
 
@@ -189,7 +212,7 @@ grouping :: proc() {
 
 number :: proc() {
 	value := strconv.atof(parser.previous.value)
-	emitConstant(Value(value))
+	emitConstant(numberVal(value))
 }
 
 unary :: proc() {
@@ -200,6 +223,8 @@ unary :: proc() {
 
 	// Emit the operator instruction.
 	#partial switch operatorType {
+	case .BANG:
+		emitByte(OpCode.NOT)
 	case .MINUS:
 		emitByte(OpCode.NEGATE)
 	case:
@@ -219,30 +244,30 @@ rules: []ParseRule = {
 	TokenType.SEMICOLON     = ParseRule{nil, nil, .NONE},
 	TokenType.SLASH         = ParseRule{nil, binary, .FACTOR},
 	TokenType.STAR          = ParseRule{nil, binary, .FACTOR},
-	TokenType.BANG          = ParseRule{nil, nil, .NONE},
-	TokenType.BANG_EQUAL    = ParseRule{nil, nil, .NONE},
-	TokenType.EQUAL_EQUAL   = ParseRule{nil, nil, .NONE},
-	TokenType.GREATER       = ParseRule{nil, nil, .NONE},
-	TokenType.GREATER_EQUAL = ParseRule{nil, nil, .NONE},
-	TokenType.LESS          = ParseRule{nil, nil, .NONE},
-	TokenType.LESS_EQUAL    = ParseRule{nil, nil, .NONE},
+	TokenType.BANG          = ParseRule{unary, nil, .NONE},
+	TokenType.BANG_EQUAL    = ParseRule{nil, binary, .EQUALITY},
+	TokenType.EQUAL_EQUAL   = ParseRule{nil, binary, .EQUALITY},
+	TokenType.GREATER       = ParseRule{nil, binary, .COMPARISON},
+	TokenType.GREATER_EQUAL = ParseRule{nil, binary, .COMPARISON},
+	TokenType.LESS          = ParseRule{nil, binary, .COMPARISON},
+	TokenType.LESS_EQUAL    = ParseRule{nil, binary, .COMPARISON},
 	TokenType.IDENTIFIER    = ParseRule{nil, nil, .NONE},
 	TokenType.STRING        = ParseRule{nil, nil, .NONE},
 	TokenType.NUMBER        = ParseRule{number, nil, .NONE},
 	TokenType.AND           = ParseRule{nil, nil, .NONE},
 	TokenType.CLASS         = ParseRule{nil, nil, .NONE},
 	TokenType.ELSE          = ParseRule{nil, nil, .NONE},
-	TokenType.FALSE         = ParseRule{nil, nil, .NONE},
+	TokenType.FALSE         = ParseRule{literal, nil, .NONE},
 	TokenType.FOR           = ParseRule{nil, nil, .NONE},
 	TokenType.FUN           = ParseRule{nil, nil, .NONE},
 	TokenType.IF            = ParseRule{nil, nil, .NONE},
-	TokenType.NIL           = ParseRule{nil, nil, .NONE},
+	TokenType.NIL           = ParseRule{literal, nil, .NONE},
 	TokenType.OR            = ParseRule{nil, nil, .NONE},
 	TokenType.PRINT         = ParseRule{nil, nil, .NONE},
 	TokenType.RETURN        = ParseRule{nil, nil, .NONE},
 	TokenType.SUPER         = ParseRule{nil, nil, .NONE},
 	TokenType.THIS          = ParseRule{nil, nil, .NONE},
-	TokenType.TRUE          = ParseRule{nil, nil, .NONE},
+	TokenType.TRUE          = ParseRule{literal, nil, .NONE},
 	TokenType.VAR           = ParseRule{nil, nil, .NONE},
 	TokenType.WHILE         = ParseRule{nil, nil, .NONE},
 	TokenType.ERROR         = ParseRule{nil, nil, .NONE},
