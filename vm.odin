@@ -74,7 +74,21 @@ peek :: proc(distance: i32) -> Value {
 }
 
 isFalsey :: proc(value: Value) -> bool {
-	return isNil(value) || (isBool(value) && !asBool(value))
+	return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value))
+}
+
+concatenate :: proc() {
+	b := cast(^ObjString)AS_OBJ(pop())
+	a := cast(^ObjString)AS_OBJ(pop())
+
+	length := len(a.str) + len(b.str)
+	chars := make([]byte, length)
+	i := 0
+	i = +copy(chars[i:], a.str)
+	copy(chars[i:], b.str)
+
+	result := takeString(string(chars))
+	push(OBJ_VAL(result))
 }
 
 readByte :: proc() -> u8 {
@@ -88,7 +102,7 @@ readConstant :: proc() -> Value {
 }
 
 checkNumbers :: proc() -> InterpretResult {
-	if !isNumber(peek(0)) || !isNumber(peek(1)) {
+	if !IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1)) {
 		runtimeError("Operands must be numbers.")
 		return .RUNTIME_ERROR
 	}
@@ -112,53 +126,64 @@ run :: proc() -> InterpretResult {
 			constant: Value = readConstant()
 			push(constant)
 		case .NIL:
-			push(nilVal())
+			push(NIL_VAL())
 		case .TRUE:
-			push(boolVal(true))
+			push(BOOL_VAL(true))
 		case .FALSE:
-			push(boolVal(false))
+			push(BOOL_VAL(false))
 		case .EQUAL:
 			b: Value = pop()
 			a: Value = pop()
-			push(boolVal(valuesEqual(a, b)))
+			push(BOOL_VAL(valuesEqual(a, b)))
 		case .GREATER:
 			checkNumbers() or_return
-			b: f64 = asNumber(pop())
-			a: f64 = asNumber(pop())
-			push(boolVal(a > b))
+			b: f64 = AS_NUMBER(pop())
+			a: f64 = AS_NUMBER(pop())
+			push(BOOL_VAL(a > b))
 		case .LESS:
 			checkNumbers() or_return
-			b: f64 = asNumber(pop())
-			a: f64 = asNumber(pop())
-			push(boolVal(a < b))
+			b: f64 = AS_NUMBER(pop())
+			a: f64 = AS_NUMBER(pop())
+			push(BOOL_VAL(a < b))
 		case .ADD:
-			checkNumbers() or_return
-			b: f64 = asNumber(pop())
-			a: f64 = asNumber(pop())
-			push(numberVal(a + b))
+			v1 := peek(0)
+			v2 := peek(1)
+			if IS_OBJ(v1) &&
+			   AS_OBJ(v1).type == .STRING &&
+			   IS_OBJ(v2) &&
+			   AS_OBJ(v2).type == .STRING {
+				concatenate()
+			} else if IS_NUMBER(peek(0)) && IS_NUMBER(peek(1)) {
+				b := AS_NUMBER(pop())
+				a := AS_NUMBER(pop())
+				push(NUMBER_VAL(a + b))
+			} else {
+				runtimeError("Operands must be two numbers or two strings.")
+				return .RUNTIME_ERROR
+			}
 		case .SUBTRACT:
 			checkNumbers() or_return
-			b: f64 = asNumber(pop())
-			a: f64 = asNumber(pop())
-			push(numberVal(a - b))
+			b: f64 = AS_NUMBER(pop())
+			a: f64 = AS_NUMBER(pop())
+			push(NUMBER_VAL(a - b))
 		case .MULTIPLY:
 			checkNumbers() or_return
-			b: f64 = asNumber(pop())
-			a: f64 = asNumber(pop())
-			push(numberVal(a * b))
+			b: f64 = AS_NUMBER(pop())
+			a: f64 = AS_NUMBER(pop())
+			push(NUMBER_VAL(a * b))
 		case .DIVIDE:
 			checkNumbers() or_return
-			b: f64 = asNumber(pop())
-			a: f64 = asNumber(pop())
-			push(numberVal(a / b))
+			b: f64 = AS_NUMBER(pop())
+			a: f64 = AS_NUMBER(pop())
+			push(NUMBER_VAL(a / b))
 		case .NOT:
-			push(boolVal(isFalsey(pop())))
+			push(BOOL_VAL(isFalsey(pop())))
 		case .NEGATE:
-			if !isNumber(peek(0)) {
+			if !IS_NUMBER(peek(0)) {
 				runtimeError("Operand must be a number.")
 				return .RUNTIME_ERROR
 			}
-			push(numberVal(-asNumber(pop())))
+			push(NUMBER_VAL(-AS_NUMBER(pop())))
 		case .RETURN:
 			printValue(pop())
 			fmt.println("")

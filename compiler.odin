@@ -212,7 +212,12 @@ grouping :: proc() {
 
 number :: proc() {
 	value := strconv.atof(parser.previous.value)
-	emitConstant(numberVal(value))
+	emitConstant(NUMBER_VAL(value))
+}
+
+loxString :: proc() {
+	str := parser.previous.value[1:len(parser.previous.value) - 1]
+	emitConstant(OBJ_VAL(copyString(str)))
 }
 
 unary :: proc() {
@@ -252,7 +257,7 @@ rules: []ParseRule = {
 	TokenType.LESS          = ParseRule{nil, binary, .COMPARISON},
 	TokenType.LESS_EQUAL    = ParseRule{nil, binary, .COMPARISON},
 	TokenType.IDENTIFIER    = ParseRule{nil, nil, .NONE},
-	TokenType.STRING        = ParseRule{nil, nil, .NONE},
+	TokenType.STRING        = ParseRule{loxString, nil, .NONE},
 	TokenType.NUMBER        = ParseRule{number, nil, .NONE},
 	TokenType.AND           = ParseRule{nil, nil, .NONE},
 	TokenType.CLASS         = ParseRule{nil, nil, .NONE},

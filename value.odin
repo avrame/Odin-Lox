@@ -6,11 +6,13 @@ ValueType :: enum {
 	BOOL,
 	NIL,
 	NUMBER,
+	OBJ,
 }
 
 ValueUnion :: union {
 	bool,
 	f64,
+	^Obj,
 }
 
 Value :: struct {
@@ -20,34 +22,44 @@ Value :: struct {
 
 ValueArray :: [dynamic]Value
 
-isBool :: proc(value: Value) -> bool {
+IS_BOOL :: proc(value: Value) -> bool {
 	return value.type == .BOOL
 }
 
-isNil :: proc(value: Value) -> bool {
+IS_NIL :: proc(value: Value) -> bool {
 	return value.type == .NIL
 }
 
-isNumber :: proc(value: Value) -> bool {
+IS_NUMBER :: proc(value: Value) -> bool {
 	return value.type == .NUMBER
 }
 
-asBool :: proc(value: Value) -> bool {
+IS_OBJ :: proc(value: Value) -> bool {
+	return value.type == .OBJ
+}
+
+AS_BOOL :: proc(value: Value) -> bool {
 	return value.as.(bool)
 }
 
-asNumber :: proc(value: Value) -> f64 {
+AS_NUMBER :: proc(value: Value) -> f64 {
 	return value.as.(f64)
+}
+
+AS_OBJ :: proc(value: Value) -> ^Obj {
+	return value.as.(^Obj)
 }
 
 printValue :: proc(value: Value) {
 	switch value.type {
 	case .BOOL:
-		fmt.printf(asBool(value) ? "true" : "false")
+		fmt.printf(AS_BOOL(value) ? "true" : "false")
 	case .NIL:
 		fmt.printf("nil")
 	case .NUMBER:
-		fmt.printf("%g", asNumber(value))
+		fmt.printf("%g", AS_NUMBER(value))
+	case .OBJ:
+		printObject(AS_OBJ(value))
 	}
 }
 
@@ -55,24 +67,30 @@ valuesEqual :: proc(a: Value, b: Value) -> bool {
 	if a.type != b.type {return false}
 	switch a.type {
 	case .BOOL:
-		return asBool(a) == asBool(b)
+		return AS_BOOL(a) == AS_BOOL(b)
 	case .NIL:
 		return true
 	case .NUMBER:
-		return asNumber(a) == asNumber(b)
+		return AS_NUMBER(a) == AS_NUMBER(b)
+	case .OBJ:
+		return AS_OBJ(a) == AS_OBJ(b)
 	case:
 		return false // Unreachable
 	}
 }
 
-boolVal :: proc(value: bool) -> Value {
+BOOL_VAL :: proc(value: bool) -> Value {
 	return Value{.BOOL, value}
 }
 
-nilVal :: proc() -> Value {
+NIL_VAL :: proc() -> Value {
 	return Value{.NIL, 0}
 }
 
-numberVal :: proc(value: f64) -> Value {
+NUMBER_VAL :: proc(value: f64) -> Value {
 	return Value{.NUMBER, value}
+}
+
+OBJ_VAL :: proc(value: ^Obj) -> Value {
+	return Value{.OBJ, value}
 }
