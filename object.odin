@@ -5,6 +5,7 @@ import "core:strings"
 
 Obj :: struct {
 	type: ObjType,
+	next: ^Obj,
 }
 
 ObjString :: struct {
@@ -57,5 +58,10 @@ takeString :: proc(str: string) -> ^ObjString {
 allocateObject :: proc($T: typeid, type: ObjType) -> ^T {
 	object := new(T)
 	object.type = type
+
+	// Insert this new object into the head of the vm's objects linked list
+	object.next = vm.objects
+	vm.objects = object
+
 	return object
 }

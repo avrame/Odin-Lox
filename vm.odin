@@ -12,6 +12,7 @@ VM :: struct {
 	ip:        ^u8,
 	stack:     [STACK_MAX]Value,
 	stack_top: ^Value,
+	objects:   ^Obj,
 }
 
 InterpretResult :: enum {
@@ -53,10 +54,11 @@ runtimeError :: proc(format: string, args: ..any) {
 
 initVM :: proc() {
 	resetStack()
+	vm.objects = nil
 }
 
 freeVM :: proc() {
-
+	freeObjects()
 }
 
 push :: proc(value: Value) {
