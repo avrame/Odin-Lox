@@ -12,6 +12,7 @@ VM :: struct {
 	ip:        ^u8,
 	stack:     [STACK_MAX]Value,
 	stack_top: ^Value,
+	strings:   Table,
 	objects:   ^Obj,
 }
 
@@ -55,9 +56,11 @@ runtimeError :: proc(format: string, args: ..any) {
 initVM :: proc() {
 	resetStack()
 	vm.objects = nil
+	initTable(&vm.strings)
 }
 
 freeVM :: proc() {
+	freeTable(&vm.strings)
 	freeObjects()
 }
 

@@ -11,6 +11,7 @@ Obj :: struct {
 ObjString :: struct {
 	using obj: Obj,
 	str:       string,
+	hash:      u32,
 }
 
 ObjType :: enum {
@@ -37,22 +38,45 @@ isString :: proc(value: Value) -> bool {
 }
 
 copyString :: proc(str: string) -> ^ObjString {
+	hash: u32 = hashString(str)
+	interned: ^ObjString = tableFindString(&vm.strings, str, hash)
+	if interned != nil {return interned}
 	s := strings.clone(str)
-	return allocateString(s)
+	return allocateString(s, hash)
 }
 
-allocateString :: proc(str: string) -> ^ObjString {
-	lstring := allocateObject(ObjString, .STRING)
-	lstring.str = str
+allocateString :: proc(str: string, hash: u32) -> ^ObjString {
+	lox_string := allocateObject(ObjString, .STRING)
+	lox_string.str = str
+	lox_string.hash = hash
+	tableSet(&vm.strings, lox_string, NIL_VAL())
 
-	push(OBJ_VAL(lstring))
+	push(OBJ_VAL(lox_string))
 	pop()
 
-	return lstring
+	return lox_string
+}
+
+hashString :: proc(key: string) -> u32 {
+	hash: u32 = 2166136261
+	length := len(key)
+	for i := 0; i < length; i += 1 {
+		hash ~= cast(u32)key[i]
+		hash *= 16777619
+	}
+	return hash
 }
 
 takeString :: proc(str: string) -> ^ObjString {
-	return allocateString(str)
+	hash: u32 = hashString(str)
+	interned: ^ObjString = tableFindString(&vm.strings, str, hash)
+
+	if interned != nil {
+		delete(str)
+		return interned
+	}
+
+	return allocateString(str, hash)
 }
 
 allocateObject :: proc($T: typeid, type: ObjType) -> ^T {
